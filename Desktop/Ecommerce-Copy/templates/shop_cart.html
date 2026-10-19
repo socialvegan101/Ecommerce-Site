@@ -1,0 +1,50 @@
+{% extends "shop_base.html" %}
+{% from "_macros.html" import icon %}
+{% block title %}Your bag{% endblock %}
+{% block content %}
+<section class="page-width page-head">
+  <p class="eyebrow">Your bag</p>
+  <h1 class="page-title mt-2">{{ 'Ready when you are.' if lines else 'Your bag is empty.' }}</h1>
+</section>
+
+{% if lines %}
+<section class="page-width cart-grid">
+  <div class="cart-lines">
+    {% for l in lines %}
+    <article class="cart-line">
+      <div class="thumb-box">{% if l.image %}<img src="{{ l.image }}" alt="{{ l.name }}">{% endif %}</div>
+      <div>
+        <h3>{{ l.name }}</h3>
+        <p class="meta">{{ l.brand }}{% if l.variant %} · {{ l.variant }}{% endif %} · Rs. {{ '%.2f'|format(l.rate) }}</p>
+        <div class="controls">
+          <form class="qty-form" method="post" action="{{ url_for('shop.cart_update') }}">{{ csrf_input() }}
+            <input type="hidden" name="sku" value="{{ l.sku }}">
+            <input type="number" name="qty" min="0" max="{{ l.available }}" value="{{ l.qty }}" aria-label="Quantity of {{ l.name }}">
+            <button type="submit" class="btn btn-ghost btn-small">Update</button>
+          </form>
+          <form method="post" action="{{ url_for('shop.cart_remove') }}">{{ csrf_input() }}
+            <input type="hidden" name="sku" value="{{ l.sku }}">
+            <button type="submit" class="link-btn">Remove</button>
+          </form>
+        </div>
+        <p class="muted" style="margin-top:.6rem">{{ l.available }} available</p>
+      </div>
+      <div class="line-total">Rs. {{ '%.2f'|format(l.line_total) }}</div>
+    </article>
+    {% endfor %}
+  </div>
+
+  <aside class="summary">
+    <h2>Summary</h2>
+    <div class="sum-row sum-total"><span>Total</span><span>Rs. {{ '%.2f'|format(total) }}</span></div>
+    <a class="btn" href="{{ url_for('shop.checkout') }}">Checkout {{ icon('arrow') }}</a>
+    <a class="text-link" href="{{ url_for('shop.browse') }}">Continue shopping {{ icon('arrow') }}</a>
+  </aside>
+</section>
+{% else %}
+<section class="page-width" style="padding-bottom:6rem">
+  <p class="lead" style="max-width:30rem">Nothing here yet. Browse the shop and add something you like.</p>
+  <div class="mt-4"><a class="btn" href="{{ url_for('shop.browse') }}">Browse the shop {{ icon('arrow') }}</a></div>
+</section>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Messages{% endblock %}
+{% block content %}
+<section>
+  <h2>Contact messages ({{ rows|length }})</h2>
+  {% for m in rows %}
+  <article class="msg">
+    <h3>{{ m.first_name }} {{ m.last_name }} <span class="badge">{{ m.topic }}</span></h3>
+    <p class="muted"><a href="mailto:{{ m.email }}" style="text-decoration:underline">{{ m.email }}</a> · {{ m.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+    <p class="body">{{ m.message }}</p>
+  </article>
+  {% else %}
+  <p class="empty" style="padding:1rem 0;color:var(--muted)">No messages yet. They appear here when visitors use the contact form.</p>
+  {% endfor %}
+</section>
+{% endblock %}

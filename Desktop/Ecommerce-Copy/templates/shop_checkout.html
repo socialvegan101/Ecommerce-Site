@@ -1,0 +1,38 @@
+{% extends "shop_base.html" %}
+{% from "_macros.html" import icon %}
+{% block title %}Checkout{% endblock %}
+{% block content %}
+<section class="page-width page-head">
+  <p class="eyebrow">Checkout</p>
+  <h1 class="page-title mt-2">Where should we send it?</h1>
+</section>
+
+<section class="page-width cart-grid">
+  <div class="form-panel">
+    <form class="form" method="post" action="{{ url_for('shop.checkout') }}">{{ csrf_input() }}
+      <label for="name">Full name<input id="name" name="name" value="{{ form.get('name', '') }}" required maxlength="150" autocomplete="name"></label>
+      <div class="two">
+        <label for="email">Email<input id="email" name="email" type="email" value="{{ form.get('email', '') }}" required maxlength="150" autocomplete="email"></label>
+        <label for="phone">Phone<input id="phone" name="phone" value="{{ form.get('phone', '') }}" required maxlength="30" autocomplete="tel"></label>
+      </div>
+      <label for="address">Delivery address<textarea id="address" name="address" rows="3" required autocomplete="street-address">{{ form.get('address', '') }}</textarea></label>
+      <button type="submit" class="btn">Place order {{ icon('arrow') }}</button>
+      <a class="text-link" style="margin-left:1.5rem" href="{{ url_for('shop.cart') }}">Back to bag</a>
+    </form>
+  </div>
+
+  <aside class="summary" style="background:transparent;border:1px solid var(--line)">
+    <h2>Order summary</h2>
+    <div class="summary-lines">
+      {% for l in lines %}
+      <div class="sum-row">
+        <span>{{ l.name }}<small>{% if l.variant %}{{ l.variant }} · {% endif %}{{ l.qty }} × Rs. {{ '%.2f'|format(l.rate) }}</small></span>
+        <span>Rs. {{ '%.2f'|format(l.line_total) }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="sum-row sum-total"><span>Total</span><span>Rs. {{ '%.2f'|format(total) }}</span></div>
+    <p class="muted mt-2">Stock is reserved at the moment you place the order.</p>
+  </aside>
+</section>
+{% endblock %}

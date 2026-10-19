@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% block title %}Hierarchy setup{% endblock %}
+{% block content %}
+
+{% set plural = {'category': 'categories', 'type': 'types', 'brand': 'brands'} %}
+
+{# One row of the tree: caret, level dot, name, child count and the row's actions. #}
+{% macro head(level, row_id, name, n, child) %}
+<div class="t-row">
+  {% if child %}
+  <button type="button" class="t-caret" aria-expanded="false" aria-label="Expand or collapse {{ name }}">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>
+  </button>
+  {% else %}<span class="t-spacer"></span>{% endif %}
+  <span class="t-dot {{ level }}" title="{{ level|capitalize }}"></span>
+  <span class="t-name">{{ name }}</span>
+  <span class="t-level">{{ level }}</span>
+  {% if child %}<span class="t-count">{{ n }} {{ child if n == 1 else plural[child] }}</span>{% endif %}
+
+  <span class="t-actions">
+    {% if child %}<button type="button" class="t-btn" data-act="add">+ {{ child|capitalize }}</button>{% endif %}
+    <button type="button" class="t-btn" data-act="rename">Rename</button>
+    <form class="t-inline" method="post" action="{{ url_for('delete_setup', level=level, row_id=row_id) }}"
+          data-confirm="Delete {{ level }}: {{ name }}?">{{ csrf_input() }}
+      <button type="submit" class="t-btn t-danger" {% if n %}disabled title="Remove everything below it first"{% endif %}>Delete</button>
+    </form>
+  </span>
+
+  <form class="t-edit" hidden method="post" action="{{ url_for('rename_setup', level=level, row_id=row_id) }}">{{ csrf_input() }}
+    <input name="name" value="{{ name }}" required aria-label="{{ level }} name">
+    <button type="submit" class="t-btn t-primary">Save</button>
+    <button type="button" class="t-btn" data-act="cancel">Cancel</button>
+  </form>
+</div>
+{% if child %}
+<form class="t-add" hidden method="post" action="{{ url_for('add_setup', level=child) }}">{{ csrf_input() }}
+  <input type="hidden" name="parent_id" value="{{ row_id }}">
+  <input name="name" required placeholder="New {{ child }} name" aria-label="New {{ child }} name">
+  <button type="submit" class="t-btn t-primary">Add {{ child }}</button>
+  <button type="button" class="t-btn" data-act="cancel">Cancel</button>
+</form>
+{% endif %}
+{% endmacro %}
+
+<p class="muted" style="margin:0 0 1rem;max-width:62rem;font-size:.95rem">
+  Browse the hierarchy as a tree: group, then category, then type, then brand. Use <strong>+ Add</strong> on a row to add something directly beneath it,
+  <strong>Rename</strong> to fix a spelling (renames show up on every item automatically), and <strong>Delete</strong> once nothing sits below an entry.
+</p>
+
+<section class="tree-card">
+  <div class="tree-toolbar">
+    <input type="search" id="tree-search" placeholder="Search the tree…" aria-label="Search the tree" autocomplete="off">
+    <button type="button" class="t-btn" id="expand-all">Expand all</button>
+    <button type="button" class="t-btn" id="collapse-all">Collapse all</button>
+    <form class="tree-newgroup" method="post" action="{{ url_for('add_setup', level='group') }}">{{ csrf_input() }}
+      <input name="name" required placeholder="New group name" aria-label="New group name">
+      <button type="submit" class="t-btn t-primary">+ Add group</button>
+    </form>
+  </div>
+
+  <div class="tree-legend" aria-hidden="true">
+    <span><i class="t-dot group"></i>Group</span><span><i class="t-dot category"></i>Category</span>
+    <span><i class="t-dot type"></i>Type</span><span><i class="t-dot brand"></i>Brand</span>
+  </div>
+
+  {% if groups %}
+  <ul class="tree" role="tree">
+    {% for g in groups %}
+    {% set cats = categories|selectattr('group_id', 'equalto', g.group_id)|list %}
+    <li class="node" data-key="group:{{ g.group_id }}" data-name="{{ g.group_name|lower }}">
+      {{ head('group', g.group_id, g.group_name, cats|length, 'category') }}
+      {% if cats %}<ul class="kids">
+        {% for c in cats %}
+        {% set tys = types|selectattr('category_id', 'equalto', c.category_id)|list %}
+        <li class="node" data-key="category:{{ c.category_id }}" data-name="{{ c.category_name|lower }}">
+          {{ head('category', c.category_id, c.category_name, tys|length, 'type') }}
+          {% if tys %}<ul class="kids">
+            {% for t in tys %}
+            {% set brs = brands|selectattr('type_id', 'equalto', t.type_id)|list %}
+            <li class="node" data-key="type:{{ t.type_id }}" data-name="{{ t.type_name|lower }}">
+              {{ head('type', t.type_id, t.type_name, brs|length, 'brand') }}
+              {% if brs %}<ul class="kids">
+                {% for b in brs %}
+                <li class="node" data-key="brand:{{ b.brand_id }}" data-name="{{ b.brand_name|lower }}">
+                  {{ head('brand', b.brand_id, b.brand_name, 0, none) }}
+                </li>
+                {% endfor %}
+              </ul>{% endif %}
+            </li>
+            {% endfor %}
+          </ul>{% endif %}
+        </li>
+        {% endfor %}
+      </ul>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  <p class="empty" id="tree-empty" hidden>Nothing matches your search.</p>
+  {% else %}
+  <p class="empty">No groups yet. Add your first group above to get started.</p>
+  {% endif %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var tree = document.querySelector(".tree");
+  if (!tree) return;
+  var KEY = "setupTreeOpen";
+  var nodes = Array.prototype.slice.call(tree.querySelectorAll(".node"));
+  var search = document.getElementById("tree-search");
+
+  //  remember which nodes are open (so the tree stays put after adding / renaming / deleting)
+  function load() { try { return JSON.parse(localStorage.getItem(KEY)); } catch (e) { return null; } }
+  function save() {
+    try {
+      localStorage.setItem(KEY, JSON.stringify(nodes.filter(isOpen).map(function (n) { return n.dataset.key; })));
+    } catch (e) {}
+  }
+  function isOpen(n) { return n.classList.contains("open"); }
+  function setOpen(n, open) {
+    n.classList.toggle("open", open);
+    var c = n.querySelector(":scope > .t-row .t-caret");
+    if (c) c.setAttribute("aria-expanded", String(open));
+  }
+  var saved = load();
+  nodes.forEach(function (n) {
+    // first visit: show groups opened one level so categories are visible
+    setOpen(n, saved ? saved.indexOf(n.dataset.key) !== -1 : n.dataset.key.indexOf("group:") === 0);
+  });
+
+  function toggle(n) { setOpen(n, !isOpen(n)); save(); }
+
+  //  clicks: caret / name toggle, row buttons
+  tree.addEventListener("click", function (e) {
+    var node = e.target.closest(".node");
+    if (!node) return;
+    var btn = e.target.closest("[data-act]");
+    if (btn) {
+      var act = btn.dataset.act, row = node.querySelector(":scope > .t-row"), add = node.querySelector(":scope > .t-add");
+      if (act === "rename") {
+        row.classList.add("editing"); row.querySelector(".t-edit").hidden = false;
+        var i = row.querySelector(".t-edit input"); i.focus(); i.select();
+      } else if (act === "add") {
+        if (add) { add.hidden = false; setOpen(node, true); save(); add.querySelector("input[name=name]").focus(); }
+      } else if (act === "cancel") {
+        row.classList.remove("editing"); row.querySelector(".t-edit").hidden = true;
+        if (add) add.hidden = true;
+      }
+      return;
+    }
+    if (e.target.closest(".t-caret") || e.target.closest(".t-name")) {
+      if (node.querySelector(":scope > .kids") || node.querySelector(":scope > .t-row .t-caret")) toggle(node);
+    }
+  });
+  tree.addEventListener("keydown", function (e) {
+    if (e.key !== "Escape") return;
+    var node = e.target.closest(".node");
+    var c = node && node.querySelector(":scope > .t-row [data-act=cancel], :scope > .t-add [data-act=cancel]");
+    if (e.target.closest(".t-edit")) node.querySelector(":scope > .t-row [data-act=cancel]").click();
+    else if (e.target.closest(".t-add")) node.querySelector(":scope > .t-add [data-act=cancel]").click();
+  });
+
+  document.getElementById("expand-all").addEventListener("click", function () { nodes.forEach(function (n) { setOpen(n, true); }); save(); });
+  document.getElementById("collapse-all").addEventListener("click", function () { nodes.forEach(function (n) { setOpen(n, false); }); save(); });
+
+  // ---- search: shows matches with their parents, and everything under a matching node
+  var empty = document.getElementById("tree-empty");
+  search.addEventListener("input", function () {
+    var q = search.value.trim().toLowerCase();
+    if (!q) {
+      nodes.forEach(function (n) { n.hidden = false; n.classList.remove("hit"); });
+      var s = load();
+      nodes.forEach(function (n) { setOpen(n, s ? s.indexOf(n.dataset.key) !== -1 : n.dataset.key.indexOf("group:") === 0); });
+      empty.hidden = true; return;
+    }
+    nodes.forEach(function (n) { n.dataset.self = n.dataset.name.indexOf(q) !== -1 ? "1" : ""; n.classList.toggle("hit", !!n.dataset.self); });
+    var shown = 0;
+    nodes.forEach(function (n) {
+      var below = !!n.querySelector('.node[data-self="1"]');
+      var inside = !!(n.parentElement && n.parentElement.closest('.node[data-self="1"]'));
+      var show = !!n.dataset.self || below || inside;
+      n.hidden = !show;
+      if (show) { shown++; setOpen(n, below || !!n.dataset.self); }
+    });
+    empty.hidden = shown !== 0;
+  });
+})();
+</script>
+{% endblock %}

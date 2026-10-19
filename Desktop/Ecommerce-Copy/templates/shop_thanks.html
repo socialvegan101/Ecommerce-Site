@@ -1,0 +1,28 @@
+{% extends "shop_base.html" %}
+{% from "_macros.html" import icon %}
+{% block title %}Order placed{% endblock %}
+{% block content %}
+<section class="page-width">
+  <div class="thanks">
+    <span class="tick">{{ icon('check', 28) }}</span>
+    <p class="eyebrow mt-3">Order #{{ order.order_id }}</p>
+    <h1 class="page-title mt-1">Thank you, {{ order.customer_name }}.</h1>
+    <p class="lead mt-2">Your order has been placed. We'll contact you on {{ order.phone }} if we need anything.</p>
+
+    <div class="receipt">
+      {% for l in lines %}
+      <div class="sum-row">
+        <span>{{ l.item_name }}<small>{% if l.color or l.size %}{{ [l.color, l.size]|select|join(' / ') }} · {% endif %}{{ l.qty }} × Rs. {{ '%.2f'|format(l.rate) }}</small></span>
+        <span>Rs. {{ '%.2f'|format(l.line_total) }}</span>
+      </div>
+      {% endfor %}
+      <div class="sum-row sum-total" style="margin:0;padding-top:1.25rem;border-top:0"><span>Total</span><span>Rs. {{ '%.2f'|format(order.total) }}</span></div>
+    </div>
+    <p class="muted mt-3" style="white-space:pre-line">Deliver to: {{ order.address }}</p>
+    <div class="mt-4" style="display:flex;gap:2rem;flex-wrap:wrap">
+      <a class="text-link" href="{{ url_for('shop.browse') }}">Continue shopping {{ icon('arrow') }}</a>
+      {% if session.get('customer_id') %}<a class="text-link" href="{{ url_for('shop.my_orders') }}">Your past orders {{ icon('arrow') }}</a>{% endif %}
+    </div>
+  </div>
+</section>
+{% endblock %}

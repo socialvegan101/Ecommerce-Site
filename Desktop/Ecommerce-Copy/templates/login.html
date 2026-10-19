@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Admin login{% endblock %}
+{% block content %}
+<div class="page-width auth-wrap">
+<section class="authbox">
+  <p class="eyebrow">Staff only</p>
+  <h1>Admin login</h1>
+  <p class="sub">This area is for store administrators only.</p>
+  <form class="form" method="post">{{ csrf_input() }}
+    <label for="password">Password
+      <input id="password" name="password" type="password" required autofocus></label>
+    <button type="submit" class="btn">Log in</button>
+  </form>
+  <p class="muted" style="margin-top:1.5rem">Shopping as a customer? <a class="inline" href="{{ url_for('shop.browse') }}">Go to the shop</a>.</p>
+</section>
+</div>
+{% endblock %}

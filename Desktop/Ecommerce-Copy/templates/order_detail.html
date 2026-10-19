@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Order #{{ order.order_id }}{% endblock %}
+{% block content %}
+<div class="cols">
+  <section>
+    <h2>Order #{{ order.order_id }} <span class="badge {{ order.status }}">{{ order.status|capitalize }}</span></h2>
+    <p style="margin:0 0 4px"><strong>{{ order.customer_name }}</strong></p>
+    <p class="muted" style="margin:0">{{ order.email }} · {{ order.phone }}</p>
+    <p style="white-space:pre-line">{{ order.address }}</p>
+    <p class="muted">Placed {{ order.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+  </section>
+
+  <section>
+    <h2>Update status</h2>
+    {% if next_statuses %}
+    <form method="post" action="{{ url_for('update_order_status', order_id=order.order_id) }}" class="row">{{ csrf_input() }}
+      <div>
+        <label for="status">Move to</label>
+        <select id="status" name="status">
+          {% for s in next_statuses %}<option value="{{ s }}">{{ s|capitalize }}</option>{% endfor %}
+        </select>
+      </div>
+      <button type="submit">Update</button>
+    </form>
+    <p class="muted">Cancelling an order returns its quantities to the items' closing stock.</p>
+    {% else %}
+      <p class="muted">This order is {{ order.status }} and can't be changed further.</p>
+    {% endif %}
+  </section>
+</div>
+
+<section style="margin-top:24px">
+  <h2>Items</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>SKU</th><th>Item</th><th>Variant</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Total</th></tr></thead>
+      <tbody>
+      {% for l in lines %}
+        <tr>
+          <td>{{ l.sku or '(item deleted)' }}</td><td>{{ l.item_name }}</td>
+          <td>{{ [l.color, l.size]|select|join(' / ') }}</td>
+          <td class="num">{{ l.qty }}</td>
+          <td class="num">{{ '%.2f'|format(l.rate) }}</td>
+          <td class="num">{{ '%.2f'|format(l.line_total) }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+      <tfoot><tr><td colspan="5" class="num">Order total</td><td class="num">{{ '%.2f'|format(order.total) }}</td></tr></tfoot>
+    </table>
+  </div>
+</section>
+{% endblock %}

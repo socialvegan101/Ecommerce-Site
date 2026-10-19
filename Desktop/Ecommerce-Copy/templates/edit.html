@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Edit {{ item.sku }}{% endblock %}
+{% block content %}
+<section>
+  <h2>Edit item {{ item.sku }}</h2>
+  <form method="post" action="{{ url_for('update_item', sku=item.sku) }}" enctype="multipart/form-data">{{ csrf_input() }}
+    <div class="grid">
+      <div><label for="sku">SKU (can't be changed)</label><input id="sku" value="{{ item.sku }}" disabled></div>
+      <div><label for="name">Name</label><input id="name" name="name" value="{{ item.name }}" required maxlength="200"></div>
+      <div><label for="qty">Qty</label><input id="qty" name="qty" type="number" min="0" value="{{ item.qty }}" required></div>
+      <div><label for="rate">Rate</label><input id="rate" name="rate" type="number" min="0" step="0.01" value="{{ item.rate }}" required></div>
+      <div><label for="closing_stock">Closing stock</label><input id="closing_stock" name="closing_stock" type="number" min="0" value="{{ item.closing_stock }}" required></div>
+      <div><label for="color">Color</label><input id="color" name="color" value="{{ item.color or '' }}"></div>
+      <div><label for="size">Size</label><input id="size" name="size" value="{{ item.size or '' }}"></div>
+      <div>
+        <label for="product_code">Product code (same for all colors)</label>
+        <input id="product_code" name="product_code" list="codes" value="{{ item.product_code or '' }}">
+        <datalist id="codes">{% for c in codes %}<option value="{{ c }}">{% endfor %}</datalist>
+      </div>
+      <div>
+        <label for="group">Group</label>
+        <select id="group" required>
+          {% for o in groups %}<option value="{{ o.id }}" {{ 'selected' if o.id == item.group_id }}>{{ o.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div>
+        <label for="category">Category</label>
+        <select id="category" required>
+          {% for o in categories %}<option value="{{ o.id }}" {{ 'selected' if o.id == item.category_id }}>{{ o.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div>
+        <label for="type">Type</label>
+        <select id="type" required>
+          {% for o in types %}<option value="{{ o.id }}" {{ 'selected' if o.id == item.type_id }}>{{ o.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div>
+        <label for="brand">Brand</label>
+        <select id="brand" name="brand_id" required>
+          {% for o in brands %}<option value="{{ o.id }}" {{ 'selected' if o.id == item.brand_id }}>{{ o.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div>
+        <label for="image">{{ 'Replace image' if item.image_filename else 'Add image' }} (PNG, JPG, GIF, WEBP, max 400 KB)</label>
+        <input id="image" name="image" type="file" accept="image/png,image/jpeg,image/gif,image/webp" data-max-bytes="409600">
+        {% if item.image_filename %}
+          <div style="margin-top:8px;display:flex;gap:10px;align-items:center">
+            <img class="thumb" src="{{ url_for('static', filename='uploads/' ~ item.image_filename) }}" alt="Current image of {{ item.name }}">
+            <label style="margin:0"><input type="checkbox" name="remove_image" value="1" style="width:auto"> Remove current image</label>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+    <div class="actions">
+      <button type="submit">Save changes</button>
+      <a href="{{ url_for('index') }}" class="ghost" style="margin-left:8px">Cancel</a>
+      <span style="color:var(--muted);margin-left:10px">Amount is recalculated as qty × rate.</span>
+    </div>
+  </form>
+</section>
+
+<script>
+  const chain = ["group", "category", "type", "brand"];
+  const el = id => document.getElementById(id);
+
+  async function fill(level, parentId) {
+    const sel = el(level);
+    sel.innerHTML = `<option value="">Select ${level}</option>`;
+    sel.disabled = true;
+    if (!parentId) return;
+    const res = await fetch(`/api/${level}?parent=${parentId}`);
+    (await res.json()).forEach(o => sel.add(new Option(o.name, o.id)));
+    sel.disabled = false;
+  }
+
+  chain.slice(0, 3).forEach((level, idx) => {
+    el(level).addEventListener("change", async e => {
+      for (let j = idx + 2; j < chain.length; j++) await fill(chain[j], null);
+      await fill(chain[idx + 1], e.target.value);
+    });
+  });
+</script>
+{% endblock %}

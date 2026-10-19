@@ -1,0 +1,72 @@
+{% extends "shop_base.html" %}
+{% from "_macros.html" import icon %}
+{% block title %}Your past orders{% endblock %}
+{% block content %}
+<section class="page-width page-head">
+  <p class="eyebrow">Your account</p>
+  <h1 class="page-title mt-2">Your past orders</h1>
+  <div class="order-filters" role="navigation" aria-label="Filter orders">
+    <a class="chip {{ 'on' if not status }}" href="{{ url_for('shop.my_orders') }}">All ({{ counts.values()|sum }})</a>
+    {% for f in filters %}
+    <a class="chip {{ 'on' if status == f }}" href="{{ url_for('shop.my_orders', status=f) }}">{{ f|capitalize }} ({{ counts[f] }})</a>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="page-width" style="padding-bottom:5rem">
+  {% for o in orders %}
+  <article class="order-card">
+    <header class="order-top">
+      <div>
+        <p class="eyebrow">Order #{{ o.order_id }}</p>
+        <p class="muted mt-1">Placed {{ o.created_at.strftime('%d %b %Y, %H:%M') }}</p>
+      </div>
+      <span class="badge {{ o.status }}">{{ o.status|capitalize }}</span>
+    </header>
+
+    {% if o.status != 'cancelled' %}
+    {% set step = {'pending': 1, 'shipped': 2, 'delivered': 3}[o.status] %}
+    <ol class="track" aria-label="Order progress">
+      {% for label in ['Placed', 'Shipped', 'Delivered'] %}
+      <li class="{{ 'reached' if loop.index <= step }}"><span></span>{{ label }}</li>
+      {% endfor %}
+    </ol>
+    {% endif %}
+
+    <div class="order-lines">
+      {% for l in lines.get(o.order_id, []) %}
+      <div class="sum-row">
+        <span>
+          {{ l.item_name }}
+          <small>{% if l.color or l.size %}{{ [l.color, l.size]|select|join(' / ') }} · {% endif %}{{ l.qty }} × Rs. {{ '%.2f'|format(l.rate) }}</small>
+        </span>
+        <span>Rs. {{ '%.2f'|format(l.line_total) }}</span>
+      </div>
+      {% endfor %}
+    </div>
+
+    <footer class="order-foot">
+      <div>
+        <p class="muted" style="white-space:pre-line">Deliver to: {{ o.address }}</p>
+        <p class="order-total">Total: Rs. {{ '%.2f'|format(o.total) }}</p>
+      </div>
+      {% if o.status == 'pending' %}
+      <form method="post" action="{{ url_for('shop.cancel_my_order', order_id=o.order_id) }}"
+            data-confirm="Cancel order #{{ o.order_id }}? This cannot be undone.">
+        {{ csrf_input() }}
+        <button type="submit" class="btn btn-danger btn-small">Cancel order</button>
+      </form>
+      {% elif o.status == 'shipped' %}
+      <p class="muted">On its way. <a href="{{ url_for('site.contact') }}" style="text-decoration:underline">Need help?</a></p>
+      {% endif %}
+    </footer>
+  </article>
+  {% else %}
+  <p class="lead" style="max-width:32rem">
+    {% if status %}You have no {{ status }} orders.{% else %}You haven't placed any orders yet.{% endif %}
+  </p>
+  <div class="mt-4"><a class="btn" href="{{ url_for('shop.browse') }}">Browse the shop {{ icon('arrow') }}</a></div>
+  {% endfor %}
+  {% if orders %}<p class="muted mt-3">Orders can be cancelled while they are pending. Once shipped, please <a href="{{ url_for('site.contact') }}" style="text-decoration:underline">contact us</a>.</p>{% endif %}
+</section>
+{% endblock %}

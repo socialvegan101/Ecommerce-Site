@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block content %}
+<section>
+  <h2>Add item</h2>
+  <form method="post" action="{{ url_for('add_item') }}" enctype="multipart/form-data">{{ csrf_input() }}
+    <div class="grid">
+      <div><label for="sku">SKU</label><input id="sku" name="sku" required maxlength="50"></div>
+      <div><label for="name">Name</label><input id="name" name="name" required maxlength="200"></div>
+      <div><label for="qty">Qty</label><input id="qty" name="qty" type="number" min="0" required></div>
+      <div><label for="rate">Rate</label><input id="rate" name="rate" type="number" min="0" step="0.01" required></div>
+      <div><label for="closing_stock">Closing stock (defaults to qty)</label><input id="closing_stock" name="closing_stock" type="number" min="0"></div>
+      <div><label for="color">Color</label><input id="color" name="color"></div>
+      <div><label for="size">Size</label><input id="size" name="size"></div>
+      <div>
+        <label for="product_code">Product code (same for all colors of one product)</label>
+        <input id="product_code" name="product_code" list="codes" maxlength="50">
+        <datalist id="codes">{% for c in codes %}<option value="{{ c }}">{% endfor %}</datalist>
+      </div>
+      <div><label for="image">Image (PNG, JPG, GIF, WEBP, max 400 KB)</label><input id="image" name="image" type="file" accept="image/png,image/jpeg,image/gif,image/webp" data-max-bytes="409600" required></div>
+      <div>
+        <label for="group">Group</label>
+        <select id="group" required>
+          <option value="">Select group</option>
+          {% for g in groups %}<option value="{{ g.id }}">{{ g.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div><label for="category">Category</label><select id="category" required disabled><option value="">Select category</option></select></div>
+      <div><label for="type">Type</label><select id="type" required disabled><option value="">Select type</option></select></div>
+      <div><label for="brand">Brand</label><select id="brand" name="brand_id" required disabled><option value="">Select brand</option></select></div>
+    </div>
+    <div class="actions">
+      <button type="submit">Add item</button>
+      <span style="color:var(--muted);margin-left:10px">Amount is calculated as qty × rate.</span>
+    </div>
+  </form>
+</section>
+
+<section>
+  <h2>Items ({{ items|length }})</h2>
+  {% if items %}
+  <div class="table-wrap">
+    <table>
+      <thead><tr>
+        <th>Image</th><th>SKU</th><th>Product code</th><th>Name</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Amount</th>
+        <th class="num">Closing stock</th><th>Color</th><th>Size</th>
+        <th>Group</th><th>Category</th><th>Type</th><th>Brand</th><th>Actions</th>
+      </tr></thead>
+      <tbody>
+      {% for i in items %}
+        <tr>
+          <td>{% if i.image_filename %}<img class="thumb" src="{{ url_for('static', filename='uploads/' ~ i.image_filename) }}" alt="{{ i.name }}">{% endif %}</td>
+          <td>{{ i.sku }}</td><td>{{ i.product_code or '' }}</td><td>{{ i.name }}</td>
+          <td class="num">{{ i.qty }}</td>
+          <td class="num">{{ '%.2f'|format(i.rate) }}</td>
+          <td class="num">{{ '%.2f'|format(i.amount) }}</td>
+          <td class="num">{{ i.closing_stock }}</td>
+          <td>{{ i.color or '' }}</td><td>{{ i.size or '' }}</td>
+          <td>{{ i.group_name }}</td><td>{{ i.category_name }}</td><td>{{ i.type_name }}</td><td>{{ i.brand_name }}</td>
+          <td class="actions-cell">
+            <a class="ghost" href="{{ url_for('edit_item', sku=i.sku) }}">Edit</a>
+            <form method="post" action="{{ url_for('delete_item', sku=i.sku) }}"
+                  data-confirm="Delete item {{ i.sku }}? This cannot be undone.">{{ csrf_input() }}
+              <button type="submit" class="danger">Delete</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    <p class="empty">No items yet. Add your first item above.</p>
+  {% endif %}
+</section>
+
+<script>
+  const chain = ["group", "category", "type", "brand"];
+  const el = id => document.getElementById(id);
+
+  async function fill(level, parentId) {
+    const sel = el(level);
+    sel.innerHTML = `<option value="">Select ${level}</option>`;
+    sel.disabled = true;
+    if (!parentId) return;
+    const res = await fetch(`/api/${level}?parent=${parentId}`);
+    (await res.json()).forEach(o => sel.add(new Option(o.name, o.id)));
+    sel.disabled = false;
+  }
+
+  chain.slice(0, 3).forEach((level, idx) => {
+    el(level).addEventListener("change", async e => {
+      // reset everything below the changed dropdown, then load the next level
+      for (let j = idx + 2; j < chain.length; j++) await fill(chain[j], null);
+      await fill(chain[idx + 1], e.target.value);
+    });
+  });
+</script>
+{% endblock %}

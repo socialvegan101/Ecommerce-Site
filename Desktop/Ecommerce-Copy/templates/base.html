@@ -1,0 +1,154 @@
+{% from "_macros.html" import icon %}
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}{{ store.name }}{% endblock %} · {{ store.name }}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Serif+Display:ital@0;1&display=swap">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/site.css') }}">
+{% block head %}{% endblock %}
+</head>
+<body class="{{ 'admin' if admin_view else 'shop' }}">
+{% block header %}
+<header class="site-header">
+  <div class="page-width bar">
+    {% if admin_view %}
+    {# Admin pages: admin links only #}
+    <a class="logo" href="{{ url_for('index') }}">{{ store.name }} · Admin</a>
+    <div class="menu" id="menu">
+      <nav class="nav-links" aria-label="Admin">
+        <a class="nav-link {{ 'active' if request.endpoint in ('index', 'edit_item') }}" href="{{ url_for('index') }}">Items</a>
+        <a class="nav-link {{ 'active' if request.endpoint in ('orders', 'order_detail') }}" href="{{ url_for('orders') }}">Orders</a>
+        <a class="nav-link {{ 'active' if request.endpoint == 'messages' }}" href="{{ url_for('messages') }}">Messages</a>
+        <a class="nav-link {{ 'active' if request.endpoint == 'setup' }}" href="{{ url_for('setup') }}">Hierarchy setup</a>
+        <a class="nav-link" href="{{ url_for('shop.browse') }}">View shop</a>
+      </nav>
+      <div class="menu-account">
+        <form method="post" action="{{ url_for('admin_logout') }}" data-confirm="Are you sure you want to log out as admin?">
+          {{ csrf_input() }}<button type="submit" class="linklike">Admin log out</button>
+        </form>
+      </div>
+    </div>
+    <div class="bar-right">
+      <button class="icon-button menu-toggle" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="menu">{{ icon('menu') }}</button>
+    </div>
+    {% else %}
+    {#  Storefront  #}
+    <a class="logo" href="{{ url_for('shop.browse') }}" aria-label="{{ store.name }} home">{{ store.name }}</a>
+    <div class="menu" id="menu">
+      <nav class="nav-links" aria-label="Main">
+        <a class="nav-link {{ 'active' if request.endpoint in ('shop.browse') }}" href="{{ url_for('shop.browse') }}">Home</a>
+        <a class="nav-link {{ 'active' if request.endpoint in ('store', 'product') }}" href="{{ url_for('store') }}">Our Collection</a>
+        <a class="nav-link {{ 'active' if request.endpoint == 'site.about' }}" href="{{ url_for('site.about') }}">About us</a>
+        <a class="nav-link {{ 'active' if request.endpoint == 'site.info' }}" href="{{ url_for('site.info') }}">More info</a>
+        <a class="nav-link {{ 'active' if request.endpoint == 'site.contact' }}" href="{{ url_for('site.contact') }}">Contact us</a>
+      </nav>
+      <div class="menu-account">
+        {% if session.get('admin') %}
+          <a class="nav-link" href="{{ url_for('index') }}">Admin dashboard</a>
+        {% elif customer_name %}
+          <a class="nav-link {{ 'active' if request.endpoint == 'shop.my_orders' }}" href="{{ url_for('shop.my_orders') }}">My orders</a>
+          <span class="who">Hi, <strong>{{ customer_name }}</strong></span>
+          <form method="post" action="{{ url_for('auth.logout') }}">{{ csrf_input() }}<button type="submit" class="linklike">Log out</button></form>
+        {% else %}
+          <a class="nav-link" href="{{ url_for('auth.login', next=request.full_path.rstrip('?')) }}">Log in</a>
+          <a class="pill" href="{{ url_for('auth.signup') }}">Sign up</a>
+        {% endif %}
+      </div>
+    </div>
+    <div class="bar-right">
+      <a class="icon-button" href="{{ url_for('shop.cart') }}" aria-label="Shopping bag, {{ cart_count }} item{{ '' if cart_count == 1 else 's' }}">
+        {{ icon('bag') }}<span class="bag-count">{{ cart_count }}</span>
+      </a>
+      <button class="icon-button menu-toggle" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="menu">{{ icon('menu') }}</button>
+    </div>
+    {% endif %}
+  </div>
+</header>
+{% endblock %}
+
+<main class="{{ 'page-width admin-main' if admin_view else '' }}">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="{{ '' if admin_view else 'page-width' }} flashes">
+      {% for cat, msg in messages %}<div class="flash {{ cat }}" role="status">{{ msg }}</div>{% endfor %}
+    </div>
+    {% endif %}
+  {% endwith %}
+  {% block content %}{% endblock %}
+</main>
+
+{% if not admin_view %}
+<footer class="site-footer">
+  <div class="page-width">
+    <div class="footer-grid">
+      <div>
+        <p class="logo">{{ store.name }}</p>
+        <p class="footer-note">{{ store.tagline }}</p>
+      </div>
+      <div>
+        <p class="footer-heading">Explore</p>
+        <div class="footer-col">
+          <a class="footer-link" href="{{ url_for('store') }}">Shop</a>
+          <a class="footer-link" href="{{ url_for('site.about') }}">About us</a>
+          <a class="footer-link" href="{{ url_for('site.info') }}">More info</a>
+          <a class="footer-link" href="{{ url_for('site.contact') }}">Contact us</a>
+        </div>
+      </div>
+      <div>
+        <p class="footer-heading">Account</p>
+        <div class="footer-col">
+          <a class="footer-link" href="{{ url_for('shop.cart') }}">Your bag</a>
+          {% if customer_name %}<a class="footer-link" href="{{ url_for('shop.my_orders') }}">Your past orders</a>{% endif %}
+          {% if not customer_name and not session.get('admin') %}
+            <a class="footer-link" href="{{ url_for('auth.login') }}">Log in</a>
+            <a class="footer-link" href="{{ url_for('auth.signup') }}">Sign up</a>
+          {% endif %}
+          <a class="footer-link" href="{{ url_for('admin_login') }}">Admin login</a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© {{ now_year }} {{ store.name }}</p>
+      <p>{{ store.address }}</p>
+    </div>
+  </div>
+</footer>
+{% endif %}
+
+<script>
+  // Mobile menu
+  (function () {
+    var t = document.querySelector(".menu-toggle"), m = document.getElementById("menu");
+    if (!t || !m) return;
+    t.addEventListener("click", function () {
+      var open = m.classList.toggle("open");
+      t.setAttribute("aria-expanded", String(open));
+      t.setAttribute("aria-label", open ? "Close menu" : "Open menu");
+    });
+  })();
+
+  // Any form with a data-confirm attribute asks before submitting.
+  document.addEventListener("submit", function (e) {
+    var msg = e.target.dataset ? e.target.dataset.confirm : null;
+    if (msg && !confirm(msg)) e.preventDefault();
+  });
+
+  // File inputs with data-max-bytes refuse oversized files right away (the server checks again).
+  document.addEventListener("change", function (e) {
+    var el = e.target;
+    if (el.type === "file" && el.dataset && el.dataset.maxBytes && el.files && el.files[0]) {
+      var max = Number(el.dataset.maxBytes), f = el.files[0];
+      if (f.size > max) {
+        alert("\"" + f.name + "\" is " + Math.round(f.size / 1024) + " KB. Images must be " + Math.round(max / 1024) + " KB or smaller.");
+        el.value = "";
+      }
+    }
+  });
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>
